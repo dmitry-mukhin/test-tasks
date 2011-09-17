@@ -61,9 +61,7 @@ def check_args(*types):
     def decorator(f):
         @wraps(f)
         def wrapper(self, *args):
-            for i in range(len(types)):
-                _type = types[i]
-                arg = args[i]
+            for arg, _type in zip(args, types):
                 if isinstance(arg, _type):
                     return f(self, *args)
                 msg = 'Expecting "%s" instance, got "%s"' % (
@@ -138,7 +136,7 @@ class Db:
             setattr(self, name, table)
             self.tables[name] = table
 
-    def iresults(self, sql, params={}):
+    def iresults(self, sql, params=None):
         """Execute sql, return results iterator.
 
         arguments:
@@ -158,7 +156,7 @@ class Db:
                 yield SqlRow(row)
         return gen()
 
-    def results(self, sql, params={}):
+    def results(self, sql, params=None):
         """Execute sql, return results.
 
         arguments:
@@ -262,7 +260,8 @@ class SqlClause:
                 return
             if t == 'INTEGER' and isinstance(v, int):
                 return
-            if t == 'TIMESTAMP' and isinstance(v, datetime.datetime):
+            if t == 'TIMESTAMP' and ( isinstance(v, datetime.datetime) or
+                isinstance(v, datetime.date) ):
                 return
             raise SqlException(
                 'Type check failed %s cmp %s' % (t, v.__class__.__name__))
@@ -270,8 +269,6 @@ class SqlClause:
             check_type(left.type, right)
         if isinstance(right, DbField):
             check_type(right.type, left)
-
-q = SqlClause
 
 
 class SqlBuilder:
@@ -449,7 +446,7 @@ class SqlBuilder:
         ).FetchFrom(db)
 
         """
-        return q(left, op, right, self.params)
+        return SqlClause(left, op, right, self.params)
 
     @check_cmd()
     def Where(self, left, op, right):
